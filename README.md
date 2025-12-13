@@ -1,6 +1,6 @@
 # dexcom-browser-source
 
-OBS Python script providing a Browser Source to display Dexcom Glucose Monitor readings
+Cross-platform Qt desktop application providing a Browser Source for OBS to display Dexcom Glucose Monitor readings
 
 ## Overview
 
@@ -16,4 +16,4 @@ TODO:
 
 ## License
 
-This Python script `dexcom-browser-source` is licensed under the MIT License. See [LICENSE](LICENSE) for more information.
+This application `dexcom-browser-source` is licensed under the MIT License. See [LICENSE](LICENSE) for more information.

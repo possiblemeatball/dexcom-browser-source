@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 dynamic = ["version"]
 name = "dexcom-browser-source"
-description = "OBS Python script providing a Browser Source to display Dexcom Glucose Monitor readings"
+description = "Cross-platform Qt desktop application providing a Browser Source for OBS to display Dexcom Glucose Monitor readings"
 readme = { file = "README.md", content-type = "text/markdown" }
 license = "MIT"
 license-files = ["LICEN[CS]E*", "vendored/licenses/*.txt", "AUTHORS.md"]
@@ -24,7 +24,7 @@ keywords = [
     "blood sugar stream overlay",
     "glucose stream overlay",
 ]
-dependencies = ["pydexcom", "flask"]
+dependencies = ["pydexcom==0.5.0", "Flask==3.1.2", "pyside6==6.10.1"]
 
 [project.urls]
 Homepage = "https://manthrowshat.net/projects/dexcom-browser-source"
