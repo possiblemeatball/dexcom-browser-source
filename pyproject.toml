@@ -1,0 +1,34 @@
+[build-system]
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
+
+[project]
+dynamic = ["version"]
+name = "dexcom-browser-source"
+description = "OBS Python script providing a Browser Source to display Dexcom Glucose Monitor readings"
+readme = { file = "README.md", content-type = "text/markdown" }
+license = "MIT"
+license-files = ["LICEN[CS]E*", "vendored/licenses/*.txt", "AUTHORS.md"]
+authors = [{ name = "possiblemeatball", email = "meatball@manthrowshat.net" }]
+maintainers = [
+    { name = "possiblemeatball", email = "meatball@manthrowshat.net" },
+]
+keywords = [
+    "dexcom",
+    "obs",
+    "browser source",
+    "obs browser source",
+    "dexcom obs display",
+    "dexcom stream overlay",
+    "dexcom overlay",
+    "blood sugar stream overlay",
+    "glucose stream overlay",
+]
+dependencies = ["pydexcom", "flask"]
+
+[project.urls]
+Homepage = "https://manthrowshat.net/projects/dexcom-browser-source"
+Documentation = "https://git.manthrowshat.net/meatball/dexcom-browser-source/wiki"
+Repository = "https://git.manthrowshat.net/meatball/dexcom-browser-source.git"
+Issues = "https://git.manthrowshat.net/meatball/dexcom-browser-source/issues"
+Changelog = "https://git.manthrowshat.net/meatball/dexcom-browser-source/commits/branch/main"
