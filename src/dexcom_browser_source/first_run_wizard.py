@@ -1,4 +1,9 @@
-from PySide6.QtWidgets import QCheckBox, QFormLayout, QLabel, QTextEdit, QVBoxLayout, QWidget, QWizard, QWizardPage
+from csv import Error
+from ctypes import ArgumentError
+from typing import override
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QCheckBox, QFormLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QVBoxLayout, QWidget, QWizard, QWizardPage
+from pydexcom import Dexcom
 from dexcom_browser_source.config import AppConfig
 
 
@@ -69,14 +74,44 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 class DexcomLoginPage(QWizardPage):
     def __init__(self, app_config: AppConfig, parent: QWidget | None = None):
         super().__init__(parent)
+        self._app_config: AppConfig = app_config
         self.setTitle("Login to Dexcom Share")
         self.setSubTitle("Please provide your Dexcom Share account information.")
 
         self._layout: QFormLayout = QFormLayout()
+        self._username_line_edit: QLineEdit = QLineEdit()
+        self._password_line_edit: QLineEdit = QLineEdit()
+        self._login_push_button: QPushButton = QPushButton()
+        self._login_status_label: QLabel = QLabel()
         self.setup_layout()
+        self.registerField("dexcom.loggedin*", self._login_push_button)
 
     def setup_layout(self):
+        self._password_line_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        self._login_push_button.setText("Login to Dexcom Share")
+        self._login_push_button.setCheckable(True)
+        _ = self._login_push_button.clicked.connect(self.login)
+        self._login_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self._layout.addRow(QLabel("Dexcom Username"), self._username_line_edit)
+        self._layout.addRow(QLabel("Dexcom Password"), self._password_line_edit)
+        self._layout.addRow(self._login_push_button)
+        self._layout.addRow(self._login_status_label)
         self.setLayout(self._layout)
+
+    def login(self) -> Dexcom | Exception:
+        try:
+            dexcom: Dexcom = Dexcom(username=self._username_line_edit.text(), password=self._password_line_edit.text())
+            self._login_status_label.setText("Login successful!")
+            self._login_status_label.setStyleSheet("QLabel { color: green; }")
+            self._login_push_button.setChecked(True)
+            self._app_config.config["dexcom"]["username"] = self._username_line_edit.text()
+            self._app_config.config["dexcom"]["password"] = self._password_line_edit.text()
+            return dexcom
+        except Exception as e:
+            self._login_status_label.setText(str(e))
+            self._login_status_label.setStyleSheet("QLabel { color: red; }")
+            return e
 
 class DonatePage(QWizardPage):
     def __init__(self, parent: QWidget | None = None):
@@ -93,6 +128,7 @@ class DonatePage(QWizardPage):
 class FinishPage(QWizardPage):
     def __init__(self, app_config: AppConfig, parent: QWidget | None = None):
         super().__init__(parent)
+        self._app_config: AppConfig = app_config
         self.setTitle("First Run Setup Wizard Complete")
 
         self._layout: QVBoxLayout = QVBoxLayout()
@@ -100,3 +136,8 @@ class FinishPage(QWizardPage):
 
     def setup_layout(self):
         self.setLayout(self._layout)
+
+    @override
+    def validatePage(self, /) -> bool:
+        self._app_config.save()
+        return super().validatePage()
