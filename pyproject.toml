@@ -24,7 +24,13 @@ keywords = [
     "blood sugar stream overlay",
     "glucose stream overlay",
 ]
-dependencies = ["pydexcom==0.5.0", "Flask==3.1.2", "pyside6==6.10.1"]
+dependencies = [
+    "pydexcom==0.5.0",
+    "Flask==3.1.2",
+    "pyside6==6.10.1",
+    "pyqtdarktheme==0.1.7",
+    "toml==0.10.2",
+]
 
 [project.urls]
 Homepage = "https://manthrowshat.net/projects/dexcom-browser-source"
