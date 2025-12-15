@@ -1,6 +1,6 @@
 import sys
 from PySide6.QtCore import QObject
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 
 from dexcom_browser_source.about_dialog import AboutDialog
@@ -17,6 +17,7 @@ class SystemTrayIcon(QSystemTrayIcon):
         self._app: QApplication = app
         self._app_config: AppConfig = app_config
 
+        self._app_icon: QIcon = QIcon("assets/icon.svg")
         self.browser_source_details_dialog: BrowserSourceDetailsDialog = BrowserSourceDetailsDialog(parent=None, app=self._app, app_config=self._app_config)
         self.settings_dialog: SettingsDialog = SettingsDialog(parent=None, app=self._app, app_config=self._app_config)
         self.about_dialog: AboutDialog = AboutDialog()
@@ -25,6 +26,7 @@ class SystemTrayIcon(QSystemTrayIcon):
         self._about_action: QAction = QAction()
         self._quit_action: QAction = QAction()
         super().__init__(parent)
+        self.setIcon(self._app_icon)
 
         self._context_menu: QMenu = self.create_context_menu()
         self.setContextMenu(self._context_menu)

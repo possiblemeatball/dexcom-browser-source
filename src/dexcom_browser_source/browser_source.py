@@ -38,22 +38,25 @@ class BrowserSourceDetailsDialog(QDialog):
         self._waitress_stop_button: QPushButton = QPushButton("Stop Waitress")
         super().__init__(parent)
         self.setWindowTitle("Browser Source Details - Dexcom Browser Source")
-        self.on_waitress_finish()
         _ = self._waitress_start_button.clicked.connect(self.start_waitress)
         _ = self._waitress_stop_button.clicked.connect(self.stop_waitress)
 
+        self._waitress_status_label.setText("# Waitress is Offline")
+        self._waitress_status_label.setStyleSheet("QLabel { color: red; }")
         self._waitress_status_label.setTextFormat(Qt.TextFormat.MarkdownText)
         self._waitress_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._layout.addWidget(self._waitress_status_label)
+        self._waitress_start_button.setText("Start Waitress")
         self._button_layout.addWidget(self._waitress_start_button)
+        self._waitress_stop_button.setEnabled(False)
         self._button_layout.addWidget(self._waitress_stop_button)
         self._layout.addLayout(self._button_layout)
         self.setLayout(self._layout)
 
+        self.start_waitress()
+
 
     def start_waitress(self):
-        if self._waitress_thread.isFinished():
-            self._waitress_thread = WaitressThread(app_config=self._app_config)
         _ = self._waitress_thread.started.connect(self.on_waitress_start)
         _ = self._waitress_thread.finished.connect(self.on_waitress_finish)
         _ = self._app.aboutToQuit.connect(self.stop_waitress)
@@ -62,6 +65,7 @@ class BrowserSourceDetailsDialog(QDialog):
     def stop_waitress(self):
         self._waitress_thread.quit()
         _ = self._waitress_thread.wait()
+        self._waitress_thread = WaitressThread(app_config=self._app_config)
 
     def on_waitress_start(self):
         self._waitress_start_button.setText("Restart Waitress")

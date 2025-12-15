@@ -1,4 +1,4 @@
-# dexcom-browser-source
+<h1><img src="assets/icon.svg" width=256 alt="Dexcom Browser Source logo" style="display: block;"><br />Dexcom Browser Source</h1>
 
 Cross-platform Qt desktop application providing a Browser Source for OBS to display Dexcom Glucose Monitor readings
 
