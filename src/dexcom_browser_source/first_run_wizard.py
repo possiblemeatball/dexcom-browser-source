@@ -3,22 +3,24 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QCheckBox, QFormLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QVBoxLayout, QWidget, QWizard, QWizardPage
 from pydexcom import Dexcom
 from dexcom_browser_source.config import AppConfig
+from dexcom_browser_source.system_tray import SystemTrayIcon
 
 
 class FirstRunWizard(QWizard):
-    def __init__(self, app_config: AppConfig, parent: QWidget | None = None):
+    def __init__(self, app_config: AppConfig, system_tray_icon: SystemTrayIcon, parent: QWidget | None = None):
         super().__init__(parent)
         self.setWindowTitle("First Run Setup Wizard - Dexcom Browser Source")
         self.resize(720, 480)
         self.setFixedSize(720, 480)
         self.setWizardStyle(QWizard.WizardStyle.ClassicStyle)
         self._app_config: AppConfig = app_config
+        self._system_tray_icon: SystemTrayIcon = system_tray_icon
 
         _ = self.addPage(IntroductionPage(parent=self))
         _ = self.addPage(LicenseAcceptPage(parent=self))
-        _ = self.addPage(DexcomLoginPage(app_config, parent=self))
+        _ = self.addPage(DexcomLoginPage(app_config=app_config, parent=self))
         _ = self.addPage(DonatePage(parent=self))
-        _ = self.addPage(FinishPage(app_config, parent=self))
+        _ = self.addPage(FinishPage(app_config=app_config, system_tray_icon=system_tray_icon, parent=self))
         self.show()
 
 class IntroductionPage(QWizardPage):
@@ -124,18 +126,31 @@ class DonatePage(QWizardPage):
         self.setLayout(self._layout)
 
 class FinishPage(QWizardPage):
-    def __init__(self, app_config: AppConfig, parent: QWidget | None = None):
+    def __init__(self, app_config: AppConfig, system_tray_icon: SystemTrayIcon, parent: QWidget | None = None):
         super().__init__(parent)
         self._app_config: AppConfig = app_config
+        self._system_tray_icon: SystemTrayIcon = system_tray_icon
         self.setTitle("First Run Setup Wizard Complete")
+
+        self._open_details_check_box: QCheckBox = QCheckBox()
+        self._save_config_check_box: QCheckBox = QCheckBox()
 
         self._layout: QVBoxLayout = QVBoxLayout()
         self.setup_layout()
 
     def setup_layout(self):
+        self._open_details_check_box = QCheckBox("Open Browser Source Details")
+        self._save_config_check_box = QCheckBox("Save config.toml")
+        self._open_details_check_box.setChecked(True)
+        self._save_config_check_box.setChecked(True)
+        self._layout.addWidget(self._open_details_check_box)
+        self._layout.addWidget(self._save_config_check_box)
         self.setLayout(self._layout)
 
     @override
     def validatePage(self, /) -> bool:
-        self._app_config.save()
+        if self._save_config_check_box.isChecked():
+            self._app_config.save()
+        if self._open_details_check_box.isChecked():
+            self._system_tray_icon.browser_source_details_dialog.show()
         return super().validatePage()
