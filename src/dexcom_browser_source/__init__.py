@@ -13,7 +13,7 @@ systray: SystemTrayIcon = SystemTrayIcon(app)
 systray.show()
 
 if app_config.first_run:
-    first_run_wizard: FirstRunWizard = FirstRunWizard(app_config)
+    _ = FirstRunWizard(app_config)
 
 app.setQuitOnLastWindowClosed(False)
 sys.exit(app.exec())
