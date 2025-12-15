@@ -1,7 +1,7 @@
 from waitress.server import BaseWSGIServer, MultiSocketServer
 from pydexcom.dexcom import Dexcom
 from PySide6.QtCore import QObject, QThread, Qt
-from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QApplication, QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 from flask import Blueprint, Flask
 from flask.views import ft
 from waitress.server import create_server
@@ -23,7 +23,8 @@ class WaitressWorker(QObject):
         self._waitress_server.close()
 
 class BrowserSourceDetailsDialog(QDialog):
-    def __init__(self, app_config: AppConfig, parent: QWidget | None = None):
+    def __init__(self, app: QApplication, app_config: AppConfig, parent: QWidget | None = None):
+        self._app: QApplication = app
         self._app_config: AppConfig = app_config
         self._waitress_thread: QThread = QThread()
         self._waitress_worker: WaitressWorker = WaitressWorker(app_config=app_config)

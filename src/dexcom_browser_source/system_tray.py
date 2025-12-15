@@ -10,13 +10,15 @@ from dexcom_browser_source.settings_dialog import SettingsDialog
 
 
 class SystemTrayIcon(QSystemTrayIcon):
-    def __init__(self, parent: QObject, app_config: AppConfig):
+    def __init__(self, app: QApplication, parent: QObject, app_config: AppConfig):
         if not self.isSystemTrayAvailable():
             _ = QMessageBox.critical(None, "Dexcom Browser Source", "The system tray is unavailable! Dexcom Browser Source will now close!")
             sys.exit(1)
+        self._app: QApplication = app
+        self._app_config: AppConfig = app_config
 
-        self.browser_source_details_dialog: BrowserSourceDetailsDialog = BrowserSourceDetailsDialog(parent=None, app_config=app_config)
-        self.settings_dialog: SettingsDialog = SettingsDialog(parent=None, app_config=app_config)
+        self.browser_source_details_dialog: BrowserSourceDetailsDialog = BrowserSourceDetailsDialog(parent=None, app=self._app, app_config=self._app_config)
+        self.settings_dialog: SettingsDialog = SettingsDialog(parent=None, app=self._app, app_config=self._app_config)
         self.about_dialog: AboutDialog = AboutDialog()
         self._browser_source_action: QAction = QAction()
         self._settings_action: QAction = QAction()

@@ -9,11 +9,11 @@ app_config: AppConfig = AppConfig()
 app: QApplication = QApplication(sys.argv)
 app.setStyleSheet(qdarktheme.load_stylesheet(theme=str(app_config.config["app"]["appearance"])))
 
-system_tray_icon: SystemTrayIcon = SystemTrayIcon(parent=app, app_config=app_config)
+system_tray_icon: SystemTrayIcon = SystemTrayIcon(parent=app, app=app, app_config=app_config)
 system_tray_icon.show()
 
 if app_config.first_run:
-    _ = FirstRunWizard(app_config=app_config, system_tray_icon=system_tray_icon)
+    _ = FirstRunWizard(app=app, app_config=app_config, system_tray_icon=system_tray_icon)
 
 app.setQuitOnLastWindowClosed(False)
 sys.exit(app.exec())

@@ -1,18 +1,19 @@
 from typing import override
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QCheckBox, QFormLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QVBoxLayout, QWidget, QWizard, QWizardPage
+from PySide6.QtWidgets import QApplication, QCheckBox, QFormLayout, QLabel, QLineEdit, QPushButton, QTextEdit, QVBoxLayout, QWidget, QWizard, QWizardPage
 from pydexcom import Dexcom
 from dexcom_browser_source.config import AppConfig
 from dexcom_browser_source.system_tray import SystemTrayIcon
 
 
 class FirstRunWizard(QWizard):
-    def __init__(self, app_config: AppConfig, system_tray_icon: SystemTrayIcon, parent: QWidget | None = None):
+    def __init__(self, app: QApplication, app_config: AppConfig, system_tray_icon: SystemTrayIcon, parent: QWidget | None = None):
         super().__init__(parent)
         self.setWindowTitle("First Run Setup Wizard - Dexcom Browser Source")
         self.resize(720, 480)
         self.setFixedSize(720, 480)
         self.setWizardStyle(QWizard.WizardStyle.ClassicStyle)
+        self._app: QApplication = app
         self._app_config: AppConfig = app_config
         self._system_tray_icon: SystemTrayIcon = system_tray_icon
 
