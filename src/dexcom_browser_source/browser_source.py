@@ -56,6 +56,7 @@ class BrowserSourceDetailsDialog(QDialog):
             self._waitress_thread = WaitressThread(app_config=self._app_config)
         _ = self._waitress_thread.started.connect(self.on_waitress_start)
         _ = self._waitress_thread.finished.connect(self.on_waitress_finish)
+        _ = self._app.aboutToQuit.connect(self.stop_waitress)
         self._waitress_thread.start()
 
     def stop_waitress(self):
