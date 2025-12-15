@@ -1,6 +1,6 @@
 import sys
 from PySide6.QtCore import QObject
-from PySide6.QtGui import QAction, QFont
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import QApplication, QMenu, QMessageBox, QSystemTrayIcon
 
 from dexcom_browser_source.about_dialog import AboutDialog
