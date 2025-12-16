@@ -1,15 +1,12 @@
-from flask.json import jsonify
-from pydexcom.glucose_reading import GlucoseReading
-
-
 from typing import override
+from waitress.server import create_server
 from waitress.server import BaseWSGIServer, MultiSocketServer
 from pydexcom.dexcom import Dexcom
+from pydexcom.glucose_reading import GlucoseReading
 from PySide6.QtCore import QThread, Qt
 from PySide6.QtWidgets import QApplication, QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 from flask import Blueprint, Flask
 from flask.views import ft
-from waitress.server import create_server
 
 from dexcom_browser_source.config import AppConfig
 
@@ -90,6 +87,10 @@ class DexcomAPIBlueprint(Blueprint):
         super().__init__(name="dexcomapi", import_name=__name__, url_prefix='/api')
         self._dexcom: Dexcom = dexcom
         self.add_url_rule(rule='/current', view_func=self.serve_current_glucose_reading)
+        self.add_url_rule(rule='/current/mmol_l', view_func=self.serve_current_glucose_reading_mmol_l)
+        self.add_url_rule(rule='/current/trend', view_func=self.serve_current_glucose_reading_trend)
+        self.add_url_rule(rule='/current/trend/arrow', view_func=self.serve_current_glucose_reading_trend_arrow)
+        self.add_url_rule(rule='/current/trend/description', view_func=self.serve_current_glucose_reading_trend_description)
         self.add_url_rule(rule='/last/<int:minutes>', view_func=self.serve_last_readings)
         self.add_url_rule(rule='/last', view_func=self.serve_last_readings, defaults={"minutes": 1440})
         self.add_url_rule(rule='/', view_func=self.serve_error)
@@ -97,15 +98,46 @@ class DexcomAPIBlueprint(Blueprint):
     def serve_current_glucose_reading(self) -> ft.ResponseReturnValue:
         glucose_reading: GlucoseReading | None = self._dexcom.get_current_glucose_reading()
         if glucose_reading is None:
-            return 'No current glucose reading', 404
-        return f'{glucose_reading.mg_dl} mg/dL <span class="trend_arrow">{glucose_reading.trend_arrow}</span>', 200
+            return '--', 404
+        return f'{glucose_reading.mg_dl}', 200
+
+    def serve_current_glucose_reading_mmol_l(self) -> ft.ResponseReturnValue:
+        glucose_reading: GlucoseReading | None = self._dexcom.get_current_glucose_reading()
+        if glucose_reading is None:
+            return '--', 404
+        return f'{glucose_reading.mmol_l}', 200
+
+    def serve_current_glucose_reading_trend(self) -> ft.ResponseReturnValue:
+        glucose_reading: GlucoseReading | None = self._dexcom.get_current_glucose_reading()
+        if glucose_reading is None:
+            return '--', 404
+        return f'{glucose_reading.trend}', 200
+
+    def serve_current_glucose_reading_trend_arrow(self) -> ft.ResponseReturnValue:
+        glucose_reading: GlucoseReading | None = self._dexcom.get_current_glucose_reading()
+        if glucose_reading is None:
+            return '--', 404
+        return f'{glucose_reading.trend_arrow}', 200
+
+    def serve_current_glucose_reading_trend_description(self) -> ft.ResponseReturnValue:
+        glucose_reading: GlucoseReading | None = self._dexcom.get_current_glucose_reading()
+        if glucose_reading is None:
+            return '--', 404
+        return f'{glucose_reading.trend_description}', 200
+
+    def serve_current_glucose_reading_trend_direction(self) -> ft.ResponseReturnValue:
+        glucose_reading: GlucoseReading | None = self._dexcom.get_current_glucose_reading()
+        if glucose_reading is None:
+            return '--', 404
+        return f'{glucose_reading.trend_direction}', 200
 
     def serve_last_readings(self, minutes: int) -> ft.ResponseReturnValue:
         glucose_readings: list[GlucoseReading] = self._dexcom.get_glucose_readings(minutes=minutes)
 
-        response: str = ""
+        response: str = "<table><tr><th>Date</th><th>Glucose</th><th>Trend Arrow</th></tr>"
         for reading in glucose_readings:
-            response = response + f'{reading.mg_dl} mg/dL <span class="trend_arrow">{reading.trend_arrow}</span> <br>'
+            response = response + f'<tr><td>{reading.datetime}</td><td>{reading.mg_dl} mg/dL</td><td>{reading.trend_arrow}</td></tr>'
+        response = response + "</table>"
         return response, 200
 
     def serve_error(self) -> ft.ResponseReturnValue:
