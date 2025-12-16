@@ -31,6 +31,7 @@ dependencies = [
     "pyqtdarktheme==0.1.7",
     "toml==0.10.2",
     "waitress==3.0.2",
+    "matplotlib==3.10.8",
 ]
 
 [project.urls]
