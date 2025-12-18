@@ -65,9 +65,9 @@ class BrowserSourceDetailsDialog(QDialog):
     def start_waitress(self):
         if self._waitress_thread.isFinished():
             self._waitress_thread = WaitressThread(app_config=self._app_config)
+        _ = self._app.aboutToQuit.connect(self.stop_waitress)
         _ = self._waitress_thread.started.connect(self.on_waitress_start)
         _ = self._waitress_thread.finished.connect(self.on_waitress_finish)
-        _ = self._app.aboutToQuit.connect(self.stop_waitress)
         self._waitress_thread.start()
 
     def stop_waitress(self):
@@ -96,10 +96,6 @@ class DexcomAPIBlueprint(Blueprint):
             username=str(app_config.config["dexcom"]["username"]),
             password=str(app_config.config["dexcom"]["password"])
         )
-        self._metric: bool = bool(app_config.config["dexcom"]["metric"])
-        self._hypoglycemia_level: int = int(app_config.config["dexcom"]["hypoglycemia_level"])
-        self._hyperglycemia_level: int = int(app_config.config["dexcom"]["hyperglycemia_level"])
-        self._graph_limit: int = int(app_config.config["dexcom"]["graph_limit"])
 
         self.add_url_rule(rule='/current', view_func=self.serve_current_glucose_reading)
         self.add_url_rule(rule='/current/mmol_l', view_func=self.serve_current_glucose_reading_mmol_l)
@@ -151,48 +147,52 @@ class DexcomAPIBlueprint(Blueprint):
     def serve_last_readings(self, hours: int) -> ft.ResponseReturnValue:
         glucose_readings: list[GlucoseReading] = self._dexcom.get_glucose_readings(minutes=(60 * hours))
 
-        response: str = "<table><tr><th>Date</th><th>Glucose</th><th>Trend Arrow</th></tr>"
+        response: str = f"<table><tr><th>Date</th><th>Glucose Level ({"mmol/L" if self._app_config.config["dexcom"]["metric"] else "mg/dL"})</th><th>Trend Arrow</th></tr>"
         for reading in glucose_readings:
-            response = response + f'<tr><td>{reading.datetime}</td><td>{reading.mg_dl} mg/dL</td><td>{reading.trend_arrow}</td></tr>'
-        response = response + "</table>"
+            response += f'<tr><td>{reading.datetime.strftime(format="%I %p")}</td><td>{reading.mmol_l if self._app_config.config["dexcom"]["metric"] else reading.mg_dl}</td><td>{reading.trend_arrow}</td></tr>'
+        response += "</table>"
         return response, 200
 
     def serve_last_readings_as_graph(self, hours: int) -> ft.ResponseReturnValue:
+        metric: bool = self._app_config.config["dexcom"]["metric"]
+        hypoglycemia: float | int = self._app_config.config['dexcom']['hypoglycemia_level']
+        hyperglycemia: float | int = self._app_config.config['dexcom']['hyperglycemia_level']
+        ybound_up: float | int = self._app_config.config['dexcom']['graph_max']
+        ybound_low: float | int = 3.9 if metric else 40
+        tick_color: str = "white" if self._app_config.config["app"]["appearance"] == "dark" else "black"
         glucose_readings: list[GlucoseReading] = self._dexcom.get_glucose_readings(minutes=(60 * hours))
 
         chart_figure: Figure = Figure()
         chart_axis: Subplot = chart_figure.subplots()
 
         x: list[datetime] = []
-        y: list[int] = []
+        y: list[float | int] = []
         for reading in glucose_readings:
-            mg_dl: int = reading.mg_dl
+            glucose: float | int = reading.mmol_l if metric else reading.mg_dl
             time: datetime = reading.datetime
             x.append(time)
-            y.append(mg_dl)
+            y.append(glucose)
         x.reverse()
 
         _ = chart_axis.spines['top'].set_visible(False)
         _ = chart_axis.spines['right'].set_visible(False)
         _ = chart_axis.spines['bottom'].set_visible(False)
         _ = chart_axis.spines['left'].set_visible(False)
-        _ = chart_axis.xaxis.set_major_locator(HourLocator(byhour=range(0, 25, round(hours / 4))))
-        _ = chart_axis.xaxis.set_major_formatter(formatter=DateFormatter(fmt='%I %p'))
-        _ = chart_axis.yaxis.set_ticks(ticks=[40, self._hypoglycemia_level, self._hyperglycemia_level, self._graph_limit])
+        _ = chart_axis.xaxis.set_major_locator(locator=HourLocator(byhour=range(0, 25, round(hours / 4))))
+        _ = chart_axis.xaxis.set_major_formatter(formatter=DateFormatter(fmt='%I %p', tz=x[0].tzinfo))
+        _ = chart_axis.yaxis.set_ticks(ticks=[ybound_low, hypoglycemia, hyperglycemia, ybound_up])
         _ = chart_axis.set_xlim(left=x[0], right=x[-1])
         _ = chart_axis.yaxis.set_ticks_position('right')
-        _ = chart_axis.yaxis.set_label_position('right')
-        _ = chart_axis.set_ybound(lower=40, upper=400)
+        _ = chart_axis.set_ybound(lower=ybound_low, upper=ybound_up)
         _ = chart_axis.set_autoscaley_on(False)
-        _ = chart_axis.axhspan(ymin=(self._hypoglycemia_level + 4), ymax=(self._hyperglycemia_level - 4), facecolor='grey', alpha=0.25)
-        _ = chart_axis.axhspan(ymin=self._hyperglycemia_level, ymax=self._graph_limit, facecolor='yellow', alpha=0.5)
-        _ = chart_axis.axhspan(ymin=40, ymax=self._hypoglycemia_level, facecolor='red', alpha=0.5)
-        _ = chart_axis.tick_params(colors=("white" if self._app_config.config["app"]["appearance"] == "dark" else "black"))
-        _ = chart_axis.plot(x, y, color=("white" if self._app_config.config["app"]["appearance"] == "dark" else "black"), marker='o', markersize=2, linewidth=0)
+        _ = chart_axis.axhspan(ymin=(hypoglycemia + 4), ymax=(hyperglycemia - 4), facecolor='grey', alpha=0.25)
+        _ = chart_axis.axhspan(ymin=hyperglycemia, ymax=ybound_up, facecolor='yellow', alpha=0.5)
+        _ = chart_axis.axhspan(ymin=ybound_low, ymax=hypoglycemia, facecolor='red', alpha=0.5)
+        _ = chart_axis.tick_params(colors=tick_color)
+        _ = chart_axis.plot(x, y, color=tick_color, marker='o', markersize=2, linewidth=0)
 
         chart_buffer: BytesIO = BytesIO()
         chart_figure.savefig(fname=chart_buffer, format="png", transparent=True)
-
         data: str = base64.b64encode(chart_buffer.getbuffer()).decode("ascii")
         return f"<img src='data:image/png;base64,{data}' />", 200
 
@@ -208,15 +208,15 @@ def create_app(app_config: AppConfig) -> Flask:
 
     glucose_blueprint: Blueprint = Blueprint('glucose', import_name=__name__, url_prefix='/glucose')
     def serve_glucose(_path: str) -> ft.ResponseReturnValue:
-        return app.send_static_file("glucose.html")
-    glucose_blueprint.add_url_rule("/<path:_path>", view_func=serve_glucose)
-    glucose_blueprint.add_url_rule("", view_func=serve_glucose, defaults={'_path': ''})
+        return app.send_static_file(filename="glucose.html")
+    glucose_blueprint.add_url_rule(rule="/<path:_path>", view_func=serve_glucose)
+    glucose_blueprint.add_url_rule(rule="", view_func=serve_glucose, defaults={'_path': ''})
     app.register_blueprint(blueprint=glucose_blueprint)
 
     chart_blueprint: Blueprint = Blueprint('chart', import_name=__name__, url_prefix='/chart')
     def serve_chart(_path: str) -> ft.ResponseReturnValue:
-        return app.send_static_file("chart.html")
-    chart_blueprint.add_url_rule("/<path:_path>", view_func=serve_chart)
-    chart_blueprint.add_url_rule("", view_func=serve_chart, defaults={'_path': ''})
+        return app.send_static_file(filename="chart.html")
+    chart_blueprint.add_url_rule(rule="/<path:_path>", view_func=serve_chart)
+    chart_blueprint.add_url_rule(rule="", view_func=serve_chart, defaults={'_path': ''})
     app.register_blueprint(blueprint=chart_blueprint)
     return app

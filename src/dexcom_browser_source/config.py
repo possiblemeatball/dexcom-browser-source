@@ -16,7 +16,7 @@ class AppConfig:
                 "metric": False,
                 "hypoglycemia_level": 70,
                 "hyperglycemia_level": 180,
-                "graph_limit": 300,
+                "graph_max": 300,
             }
         }
 
