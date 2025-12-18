@@ -6,17 +6,25 @@ import toml
 class AppConfig:
     def __init__(self, custom_config_path: Path | None = None):
         self._config_path: Path = Path(custom_config_path if custom_config_path is not None else platformdirs.user_config_path(), "dexcom-browser-source")
-        self.config: dict[str, dict[str, str | int | float | bool | dict[str, str | int | float | bool | None] | None]] = {
+        self.config: dict[str, dict[str, str | bool | float | int | dict[str, str | bool | float | int | None] | None]] = {
             "app": {
+                "metric": False,
                 "appearance": "dark",
+                "graph_height_limit": 300,
+                "colors": {
+                    "hypoglycemia": "red",
+                    "hyperglycemia": "yellow",
+                    "normal": "grey"
+                }
             },
             "dexcom": {
-                "username": "",
-                "password": "",
-                "metric": False,
-                "hypoglycemia_level": 70,
                 "hyperglycemia_level": 180,
-                "graph_max": 300,
+                "hypoglycemia_level": 70,
+                "severe_hypoglycemia_level": 55,
+                "account": {
+                    "username": None,
+                    "password": None,
+                },
             }
         }
 

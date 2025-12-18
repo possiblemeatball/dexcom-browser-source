@@ -1,5 +1,6 @@
 import base64
 from datetime import datetime
+from flask import Blueprint, Flask
 from io import BytesIO
 from typing import override
 from matplotlib.axes import Subplot
@@ -9,7 +10,6 @@ from pydexcom.dexcom import Dexcom
 from pydexcom.glucose_reading import GlucoseReading
 from PySide6.QtCore import QThread, Qt
 from PySide6.QtWidgets import QApplication, QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
-from flask import Blueprint, Flask
 from flask.views import ft
 from matplotlib.figure import Figure
 from matplotlib.dates import DateFormatter, HourLocator
@@ -93,22 +93,28 @@ class DexcomAPIBlueprint(Blueprint):
         super().__init__(name="dexcomapi", import_name=__name__, url_prefix='/api')
         self._app_config: AppConfig = app_config
         self._dexcom: Dexcom = Dexcom(
-            username=str(app_config.config["dexcom"]["username"]),
-            password=str(app_config.config["dexcom"]["password"])
+            username=str(app_config.config['dexcom']['account']['username']),
+            password=str(app_config.config['dexcom']['account']['password'])
         )
 
-        self.add_url_rule(rule='/current', view_func=self.serve_current_glucose_reading)
+        self.add_url_rule(rule='/current/mg_dl', view_func=self.serve_current_glucose_reading_mg_dl)
         self.add_url_rule(rule='/current/mmol_l', view_func=self.serve_current_glucose_reading_mmol_l)
-        self.add_url_rule(rule='/current/trend', view_func=self.serve_current_glucose_reading_trend)
         self.add_url_rule(rule='/current/trend/arrow', view_func=self.serve_current_glucose_reading_trend_arrow)
         self.add_url_rule(rule='/current/trend/description', view_func=self.serve_current_glucose_reading_trend_description)
+        self.add_url_rule(rule='/current/trend', view_func=self.serve_current_glucose_reading_trend)
+        self.add_url_rule(rule='/current', view_func=self.serve_current_glucose_reading)
         self.add_url_rule(rule='/last/<int:hours>/graph', view_func=self.serve_last_readings_as_graph)
         self.add_url_rule(rule='/last/<int:hours>', view_func=self.serve_last_readings)
         self.add_url_rule(rule='/last/graph', view_func=self.serve_last_readings_as_graph, defaults={"hours": 24})
         self.add_url_rule(rule='/last', view_func=self.serve_last_readings, defaults={"hours": 24})
-        self.add_url_rule(rule='/', view_func=self.serve_error)
 
     def serve_current_glucose_reading(self) -> ft.ResponseReturnValue:
+        if self._app_config.config['dexcom']['metric']:
+            return self.serve_current_glucose_reading_mmol_l()
+        else:
+            return self.serve_current_glucose_reading_mg_dl()
+
+    def serve_current_glucose_reading_mg_dl(self) -> ft.ResponseReturnValue:
         glucose_reading: GlucoseReading | None = self._dexcom.get_current_glucose_reading()
         if glucose_reading is None:
             return '--', 404
@@ -145,21 +151,24 @@ class DexcomAPIBlueprint(Blueprint):
         return f'{glucose_reading.trend_direction}', 200
 
     def serve_last_readings(self, hours: int) -> ft.ResponseReturnValue:
+        metric: bool = self._app_config.config['app']['metric']
         glucose_readings: list[GlucoseReading] = self._dexcom.get_glucose_readings(minutes=(60 * hours))
 
-        response: str = f"<table><tr><th>Date</th><th>Glucose Level ({"mmol/L" if self._app_config.config["dexcom"]["metric"] else "mg/dL"})</th><th>Trend Arrow</th></tr>"
+
+        response: str = f"<table><tr><th>Date</th><th>Glucose Level ({"mmol/L" if metric else "mg/dL"})</th><th>Trend Arrow</th></tr>"
         for reading in glucose_readings:
-            response += f'<tr><td>{reading.datetime.strftime(format="%I %p")}</td><td>{reading.mmol_l if self._app_config.config["dexcom"]["metric"] else reading.mg_dl}</td><td>{reading.trend_arrow}</td></tr>'
+            glucose: float | int = reading.mmol_l if metric else reading.mg_dl
+            response += f'<tr><td>{reading.datetime.strftime(format="%I:%M %p")}</td><td>{glucose}</td><td>{reading.trend_arrow}</td></tr>'
         response += "</table>"
         return response, 200
 
     def serve_last_readings_as_graph(self, hours: int) -> ft.ResponseReturnValue:
-        metric: bool = self._app_config.config["dexcom"]["metric"]
-        hypoglycemia: float | int = self._app_config.config['dexcom']['hypoglycemia_level']
+        metric: bool = bool(self._app_config.config['app']['metric'])
         hyperglycemia: float | int = self._app_config.config['dexcom']['hyperglycemia_level']
-        ybound_up: float | int = self._app_config.config['dexcom']['graph_max']
+        hypoglycemia: float | int = self._app_config.config['dexcom']['hypoglycemia_level']
+        ybound_up: float | int = self._app_config.config['app']['graph_height_max']
         ybound_low: float | int = 3.9 if metric else 40
-        tick_color: str = "white" if self._app_config.config["app"]["appearance"] == "dark" else "black"
+        tick_color: str = "white" if self._app_config.config['app']['appearance'] == "dark" else "black"
         glucose_readings: list[GlucoseReading] = self._dexcom.get_glucose_readings(minutes=(60 * hours))
 
         chart_figure: Figure = Figure()
@@ -194,29 +203,29 @@ class DexcomAPIBlueprint(Blueprint):
         chart_buffer: BytesIO = BytesIO()
         chart_figure.savefig(fname=chart_buffer, format="png", transparent=True)
         data: str = base64.b64encode(chart_buffer.getbuffer()).decode("ascii")
+        chart_buffer.close()
         return f"<img src='data:image/png;base64,{data}' />", 200
 
-    def serve_error(self) -> ft.ResponseReturnValue:
-        return '', 403
+class StaticBlueprint(Blueprint):
+    def __init__(self, name: str, url_prefix: str, app: Flask, app_config: AppConfig) -> None:
+        super().__init__(name=name, import_name=__name__, url_prefix=url_prefix)
+        self._app: Flask = app
+        self._app_config: AppConfig = app_config
+
+        self.add_url_rule(rule="/<path:_path>", view_func=self.serve_static_html)
+        self.add_url_rule(rule="", view_func=self.serve_static_html, defaults={'_path': ''})
+
+    def serve_static_html(self, _path: str) -> ft.ResponseReturnValue:
+        return self._app.send_static_file(filename=f'{self.name}.html')
 
 # flask app for waitress to serve
 def create_app(app_config: AppConfig) -> Flask:
     app: Flask = Flask(__name__)
 
     dexcom_api_blueprint: DexcomAPIBlueprint = DexcomAPIBlueprint(app_config=app_config)
+    glucose_blueprint: StaticBlueprint = StaticBlueprint(app=app, app_config=app_config, name='glucose', url_prefix='/glucose')
+    chart_blueprint: StaticBlueprint = StaticBlueprint(app=app, app_config=app_config, name='chart', url_prefix='/chart')
     app.register_blueprint(blueprint=dexcom_api_blueprint)
-
-    glucose_blueprint: Blueprint = Blueprint('glucose', import_name=__name__, url_prefix='/glucose')
-    def serve_glucose(_path: str) -> ft.ResponseReturnValue:
-        return app.send_static_file(filename="glucose.html")
-    glucose_blueprint.add_url_rule(rule="/<path:_path>", view_func=serve_glucose)
-    glucose_blueprint.add_url_rule(rule="", view_func=serve_glucose, defaults={'_path': ''})
     app.register_blueprint(blueprint=glucose_blueprint)
-
-    chart_blueprint: Blueprint = Blueprint('chart', import_name=__name__, url_prefix='/chart')
-    def serve_chart(_path: str) -> ft.ResponseReturnValue:
-        return app.send_static_file(filename="chart.html")
-    chart_blueprint.add_url_rule(rule="/<path:_path>", view_func=serve_chart)
-    chart_blueprint.add_url_rule(rule="", view_func=serve_chart, defaults={'_path': ''})
     app.register_blueprint(blueprint=chart_blueprint)
     return app
