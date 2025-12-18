@@ -2,16 +2,21 @@ from pathlib import Path
 import platformdirs
 import toml
 
+
 class AppConfig:
     def __init__(self, custom_config_path: Path | None = None):
         self._config_path: Path = Path(custom_config_path if custom_config_path is not None else platformdirs.user_config_path(), "dexcom-browser-source")
-        self.config: dict[str, dict[str, str | int | float | bool | None]] = {
+        self.config: dict[str, dict[str, str | int | float | bool | dict[str, str | int | float | bool | None] | None]] = {
             "app": {
                 "appearance": "dark",
             },
             "dexcom": {
                 "username": "",
                 "password": "",
+                "metric": False,
+                "hypoglycemia_level": 70,
+                "hyperglycemia_level": 180,
+                "graph_limit": 300,
             }
         }
 
