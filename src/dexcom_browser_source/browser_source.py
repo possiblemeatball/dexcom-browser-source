@@ -97,19 +97,15 @@ class DexcomAPIBlueprint(Blueprint):
             password=str(app_config.config['dexcom']['account']['password'])
         )
 
+        self.add_url_rule(rule='/current/trend_arrow', view_func=self.serve_current_glucose_reading_trend_arrow)
         self.add_url_rule(rule='/current/mg_dl', view_func=self.serve_current_glucose_reading_mg_dl)
         self.add_url_rule(rule='/current/mmol_l', view_func=self.serve_current_glucose_reading_mmol_l)
-        self.add_url_rule(rule='/current/trend/arrow', view_func=self.serve_current_glucose_reading_trend_arrow)
-        self.add_url_rule(rule='/current/trend/description', view_func=self.serve_current_glucose_reading_trend_description)
-        self.add_url_rule(rule='/current/trend', view_func=self.serve_current_glucose_reading_trend)
         self.add_url_rule(rule='/current', view_func=self.serve_current_glucose_reading)
-        self.add_url_rule(rule='/last/<int:hours>/graph', view_func=self.serve_last_readings_as_graph)
-        self.add_url_rule(rule='/last/<int:hours>', view_func=self.serve_last_readings)
-        self.add_url_rule(rule='/last/graph', view_func=self.serve_last_readings_as_graph, defaults={"hours": 24})
-        self.add_url_rule(rule='/last', view_func=self.serve_last_readings, defaults={"hours": 24})
+        self.add_url_rule(rule='/last/<int:hours>', view_func=self.serve_last_readings_graph)
+        self.add_url_rule(rule='/last', view_func=self.serve_last_readings_graph, defaults={"hours": self._app_config.config['graph']['last_hours']})
 
     def serve_current_glucose_reading(self) -> ft.ResponseReturnValue:
-        if self._app_config.config['dexcom']['metric']:
+        if self._app_config.config['app']['metric']:
             return self.serve_current_glucose_reading_mmol_l()
         else:
             return self.serve_current_glucose_reading_mg_dl()
@@ -118,57 +114,27 @@ class DexcomAPIBlueprint(Blueprint):
         glucose_reading: GlucoseReading | None = self._dexcom.get_current_glucose_reading()
         if glucose_reading is None:
             return '--', 404
-        return f'{glucose_reading.mg_dl}', 200
+        return f'<span hx-get="/api/current" hx-trigger="load delay:1m" hx-swap="outerHTML">{glucose_reading.mg_dl}</span>', 200
 
     def serve_current_glucose_reading_mmol_l(self) -> ft.ResponseReturnValue:
         glucose_reading: GlucoseReading | None = self._dexcom.get_current_glucose_reading()
         if glucose_reading is None:
             return '--', 404
-        return f'{glucose_reading.mmol_l}', 200
-
-    def serve_current_glucose_reading_trend(self) -> ft.ResponseReturnValue:
-        glucose_reading: GlucoseReading | None = self._dexcom.get_current_glucose_reading()
-        if glucose_reading is None:
-            return '--', 404
-        return f'{glucose_reading.trend}', 200
+        return f'<span hx-get="/api/current" hx-trigger="load delay:1m" hx-swap="outerHTML">{glucose_reading.mmol_l}</span>', 200
 
     def serve_current_glucose_reading_trend_arrow(self) -> ft.ResponseReturnValue:
         glucose_reading: GlucoseReading | None = self._dexcom.get_current_glucose_reading()
         if glucose_reading is None:
             return '--', 404
-        return f'{glucose_reading.trend_arrow}', 200
+        return f'<span hx-get="/api/current/trend_arrow" hx-trigger="load delay:1m" hx-swap="outerHTML">{glucose_reading.trend_arrow}</span>', 200
 
-    def serve_current_glucose_reading_trend_description(self) -> ft.ResponseReturnValue:
-        glucose_reading: GlucoseReading | None = self._dexcom.get_current_glucose_reading()
-        if glucose_reading is None:
-            return '--', 404
-        return f'{glucose_reading.trend_description}', 200
-
-    def serve_current_glucose_reading_trend_direction(self) -> ft.ResponseReturnValue:
-        glucose_reading: GlucoseReading | None = self._dexcom.get_current_glucose_reading()
-        if glucose_reading is None:
-            return '--', 404
-        return f'{glucose_reading.trend_direction}', 200
-
-    def serve_last_readings(self, hours: int) -> ft.ResponseReturnValue:
-        metric: bool = self._app_config.config['app']['metric']
-        glucose_readings: list[GlucoseReading] = self._dexcom.get_glucose_readings(minutes=(60 * hours))
-
-
-        response: str = f"<table><tr><th>Date</th><th>Glucose Level ({"mmol/L" if metric else "mg/dL"})</th><th>Trend Arrow</th></tr>"
-        for reading in glucose_readings:
-            glucose: float | int = reading.mmol_l if metric else reading.mg_dl
-            response += f'<tr><td>{reading.datetime.strftime(format="%I:%M %p")}</td><td>{glucose}</td><td>{reading.trend_arrow}</td></tr>'
-        response += "</table>"
-        return response, 200
-
-    def serve_last_readings_as_graph(self, hours: int) -> ft.ResponseReturnValue:
+    def serve_last_readings_graph(self, hours: int) -> ft.ResponseReturnValue:
         metric: bool = bool(self._app_config.config['app']['metric'])
         hyperglycemia: float | int = self._app_config.config['dexcom']['hyperglycemia_level']
         hypoglycemia: float | int = self._app_config.config['dexcom']['hypoglycemia_level']
-        ybound_up: float | int = self._app_config.config['app']['graph_height_max']
+        ybound_up: float | int = self._app_config.config['graph']['height_limit']
         ybound_low: float | int = 3.9 if metric else 40
-        tick_color: str = "white" if self._app_config.config['app']['appearance'] == "dark" else "black"
+        tick_color: str = "white" if self._app_config.config['graph']['colors']['appearance'] == "dark" else "black"
         glucose_readings: list[GlucoseReading] = self._dexcom.get_glucose_readings(minutes=(60 * hours))
 
         chart_figure: Figure = Figure()
@@ -182,6 +148,7 @@ class DexcomAPIBlueprint(Blueprint):
             x.append(time)
             y.append(glucose)
         x.reverse()
+        y.reverse()
 
         _ = chart_axis.spines['top'].set_visible(False)
         _ = chart_axis.spines['right'].set_visible(False)
@@ -194,9 +161,9 @@ class DexcomAPIBlueprint(Blueprint):
         _ = chart_axis.yaxis.set_ticks_position('right')
         _ = chart_axis.set_ybound(lower=ybound_low, upper=ybound_up)
         _ = chart_axis.set_autoscaley_on(False)
-        _ = chart_axis.axhspan(ymin=(hypoglycemia + 4), ymax=(hyperglycemia - 4), facecolor='grey', alpha=0.25)
-        _ = chart_axis.axhspan(ymin=hyperglycemia, ymax=ybound_up, facecolor='yellow', alpha=0.5)
-        _ = chart_axis.axhspan(ymin=ybound_low, ymax=hypoglycemia, facecolor='red', alpha=0.5)
+        _ = chart_axis.axhspan(ymin=(hypoglycemia + 4), ymax=(hyperglycemia - 4), facecolor=self._app_config.config['graph']['colors']['normal'], alpha=0.25)
+        _ = chart_axis.axhspan(ymin=hyperglycemia, ymax=ybound_up, facecolor=self._app_config.config['graph']['colors']['hyperglycemia'], alpha=0.5)
+        _ = chart_axis.axhspan(ymin=ybound_low, ymax=hypoglycemia, facecolor=self._app_config.config['graph']['colors']['hypoglycemia'], alpha=0.5)
         _ = chart_axis.tick_params(colors=tick_color)
         _ = chart_axis.plot(x, y, color=tick_color, marker='o', markersize=2, linewidth=0)
 
@@ -204,7 +171,7 @@ class DexcomAPIBlueprint(Blueprint):
         chart_figure.savefig(fname=chart_buffer, format="png", transparent=True)
         data: str = base64.b64encode(chart_buffer.getbuffer()).decode("ascii")
         chart_buffer.close()
-        return f"<img src='data:image/png;base64,{data}' />", 200
+        return f'<img src="data:image/png;base64,{data}" hx-get="/api/last" hx-trigger="load delay:1m" hx-swap="outerHTML" />', 200
 
 class StaticBlueprint(Blueprint):
     def __init__(self, name: str, url_prefix: str, app: Flask, app_config: AppConfig) -> None:

@@ -6,12 +6,16 @@ import toml
 class AppConfig:
     def __init__(self, custom_config_path: Path | None = None):
         self._config_path: Path = Path(custom_config_path if custom_config_path is not None else platformdirs.user_config_path(), "dexcom-browser-source")
-        self.config: dict[str, dict[str, str | bool | float | int | dict[str, str | bool | float | int | None] | None]] = {
+        self._config_file_path: Path = Path(self._config_path, "config.toml")
+        self.config: dict[str, dict[str, str | bool | int | float | dict[str, str | bool | int | float | None] | None]] = {
             "app": {
                 "metric": False,
-                "appearance": "dark",
-                "graph_height_limit": 300,
+            },
+            "graph": {
+                "last_hours": 24,
+                "height_limit": 300,
                 "colors": {
+                    "appearance": "dark",
                     "hypoglycemia": "red",
                     "hyperglycemia": "yellow",
                     "normal": "grey"
@@ -34,7 +38,6 @@ class AppConfig:
             self.first_run = True
             self._config_path.mkdir(parents=True)
 
-        self._config_file_path: Path = Path(self._config_path, "config.toml")
         if not self._config_file_path.exists():
             self.first_run = True
         else:

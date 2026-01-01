@@ -2,11 +2,34 @@
 <html>
 
 <head>
-    <style src="/static/style.css"></style>
+    <style>
+        html,
+        body {
+            height: 100%;
+            user-select: none;
+        }
+
+        html {
+            display: table;
+            margin: auto;
+        }
+
+        body {
+            display: table-cell;
+            vertical-align: middle;
+        }
+
+        div.glucose-graph {
+            background-color: black;
+        }
+    </style>
 </head>
 
 <body>
     <script src="/static/js/htmx.min.js"></script>
+    <div class="glucose-graph">
+        <img hx-get="/api/last" hx-trigger="load" hx-swap="outerHTML" />
+    </div>
 </body>
 
 </html>
