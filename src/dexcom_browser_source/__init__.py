@@ -1,13 +1,11 @@
 import sys
 from PySide6.QtWidgets import QApplication
-import qdarktheme
 from dexcom_browser_source.config import AppConfig
 from dexcom_browser_source.first_run_wizard import FirstRunWizard
 from dexcom_browser_source.system_tray import SystemTrayIcon
 
 app_config: AppConfig = AppConfig()
 app: QApplication = QApplication(sys.argv)
-app.setStyleSheet(qdarktheme.load_stylesheet(theme=str(app_config.config["app"]["appearance"])))
 
 system_tray_icon: SystemTrayIcon = SystemTrayIcon(parent=app, app=app, app_config=app_config)
 system_tray_icon.show()
