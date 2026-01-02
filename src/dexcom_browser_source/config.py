@@ -1,4 +1,7 @@
 from pathlib import Path
+
+from PySide6.QtGui import QIcon
+from PySide6.QtWidgets import QApplication, QDialog, QGroupBox, QWidget
 import platformdirs
 import toml
 
@@ -49,3 +52,16 @@ class AppConfig:
     def save(self):
         with self._config_file_path.open(mode='w') as f:
             _ = toml.dump(self.config, f)
+
+class SettingsDialog(QDialog):
+    def __init__(self, app: QApplication, app_config: AppConfig, parent: QWidget | None = None):
+        self._app: QApplication = app
+        self._app_config: AppConfig = app_config
+        super().__init__(parent)
+        self._app_icon: QIcon = QIcon("assets/icon.svg")
+        self._app_group: QGroupBox = QGroupBox("General")
+        self._dexcom_group: QGroupBox = QGroupBox("Dexcom")
+        self._graph_group: QGroupBox = QGroupBox("Glucose Reading and Graph")
+        self.resize(self.minimumSize())
+        self.setFixedSize(self.minimumSize())
+        self.setWindowTitle("Dexcom Browser Source - Settings")
