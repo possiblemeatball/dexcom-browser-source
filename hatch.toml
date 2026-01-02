@@ -4,3 +4,6 @@ source = "vcs"
 [version.raw-options]
 version_scheme = "no-guess-dev"
 git_describe_command = "git describe --dirty --tags --long --match 'v[0-9]*.[0-9]*.[0-9]*'"
+
+[build.hooks.vcs]
+version-file = "src/_version.py"
